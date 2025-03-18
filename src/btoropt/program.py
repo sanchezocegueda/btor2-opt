@@ -70,14 +70,19 @@ class Instruction:
         return False
 
     def serialize(self) -> str:
-        assert all([isinstance(op, Instruction) or isinstance(op, int) for op in self.operands]), \
-            "Operands must be instructions or integers, fails for operands: %d." % self.operands
+        assert all([isinstance(op, Instruction) or isinstance(op, int) or isinstance(op, str) for op in self.operands]), \
+            f"Operands must be instructions or integers, fails for operands: {self.operands}."
         return str(self.lid) + " " + self.inst + " " + \
             ' '.join([(str(op.lid) if isinstance(op, Instruction) else str(op)) + " " \
                       for op in self.operands ])
 
 def serialize_p(p: list[Instruction]) -> str:
     return reduce(lambda acc, s: acc + s.serialize() + "\n", p, "")
+
+def pretty_print(p: list[Instruction]) -> str:
+    return
+    for l in p:
+        print(l.serialize())
 
 # Extracts an instruction from a given program
 def get_inst(p: list[Instruction], lid: int) -> Instruction:
