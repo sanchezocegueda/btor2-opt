@@ -58,10 +58,19 @@ def main():
     base += 1
 
     # Check that the given pass names are valid
+    extra_args = False
     for name in sys.argv[base:]:
-        if find_pass(all_passes, name) is None:
+        if extra_args:
+            p.add_path(name)
+            extra_args = False
+            continue
+        p = find_pass(all_passes, name)
+        if p is None:
             print(f"Invalid pass given as argument: {name}")
             exit(1)
+        
+        if p.id == 'mark-insts':
+            extra_args = True
 
     # Retrieve passes
     pipeline: list[Pass] = [p for p in all_passes if p.id in sys.argv[1:]]
@@ -78,6 +87,7 @@ def main():
         print(serialize_p(btor2))
     else:
         print("Success")
+        # pretty_print(btor2)
 
 if __name__ == "__main__":
     main()

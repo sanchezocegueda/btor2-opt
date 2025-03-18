@@ -27,6 +27,9 @@ class Pass:
     def __init__(self, id: str):
         self.id = id
 
+    def add_path(self, path: str):
+        self.path = path
+
     def run(self, p: list[Instruction]) -> list[Instruction]:
         return p
     
