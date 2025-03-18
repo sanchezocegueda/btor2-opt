@@ -29,7 +29,7 @@ class CheckLidOrdering(Pass):
 
         for i in range(len(p)):
             inst = p[i]
-            inst.lid = i
+            inst.lid = i + 1
             res.append(inst)
 
         return res
