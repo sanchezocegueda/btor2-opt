@@ -22,8 +22,6 @@ from ..genericpass import Pass
 from ...program import Instruction, Sort, Next, Ite
 from collections import deque
 
-PATH = "~/btor2-opt/msg.txt"
-
 class MarkInsts(Pass):
     def __init__(self):
         super().__init__("mark-insts")
@@ -78,6 +76,6 @@ class MarkInsts(Pass):
             for other_lid in adj[lid]:
                 q.append(other_lid)
 
-        print(marked)
+        print("DEBUG: marked set =", marked)
 
         return marked
