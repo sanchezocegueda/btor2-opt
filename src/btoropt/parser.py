@@ -357,6 +357,19 @@ def parse_inst(line: str, p: list[Instruction]) -> Instruction:
             # Construct instruction
             op = Ite(lid, sort, cond, t, f)
 
+        case "array":
+            # Sanity check: verify that instruction is well formed
+            assert len(inst) >= 5,\
+                "sort instruction must be of the form: <lid> array <sid> <sid>. Found: " + line
+            
+            # Find the operands associated to this instruction
+            array = find_inst(p, int(inst[2]))
+            index = find_inst(p, int(inst[3]))
+            elem = find_inst(p, int(inst[4]))
+
+            # Construct instruction
+            op = Array(lid, sort, index, elem)
+
         case "implies":
             # Sanity check: verify that instruction is well formed
             assert len(inst) >= 5,\

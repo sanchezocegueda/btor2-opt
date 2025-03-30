@@ -80,7 +80,7 @@ def serialize_p(p: list[Instruction]) -> str:
     return reduce(lambda acc, s: acc + s.serialize() + "\n", p, "")
 
 def pretty_print(p: list[Instruction]) -> str:
-    return
+    # return
     for l in p:
         print(l.serialize())
 
@@ -257,6 +257,23 @@ class Ite(Instruction):
     def __init__(self, lid: int, sort: Sort, cond: Instruction, t: Instruction, f: Instruction):
         super().__init__(lid, "ite", [sort, cond, t, f])
 
+# <lid> penc <sort> <msg> <key>
+class Penc(Instruction):
+    def __init__(self, lid: int, sort: Sort, msg: Instruction, key: Instruction):
+        super().__init__(lid, "penc", [sort, msg, key])
+
+class Array(Instruction):
+    def __init__(self, lid, inst, operands: list[Sort]):
+        super().__init__(lid, inst, operands)
+
+class Read(Instruction):
+    def __init__(self, lid: int, sort: Sort, arr: Instruction, i: Instruction, e: Instruction):
+        super().__init__(lid, "read", [sort, arr, i, e])
+
+class Write(Instruction):
+    def __init__(self, lid: int, sort: Sort, arr: Instruction, i: Instruction, e: Instruction):
+        super().__init__(lid, "write", [sort, arr, i, e])
+
 class Implies(Instruction):
     def __init__(self, lid: int, sort: Sort, lhs: Instruction, rhs: Instruction):
         super().__init__(lid, "implies", [sort, lhs, rhs])
@@ -364,8 +381,8 @@ class Uext(Instruction):
         self.width: int = width
         self.renaming = False
         if self.width == 0:
-            self.renaming = True
             self.name = name
+            self.renaming = True
             self.aliasid = op.lid
 
 class Sext(Instruction):

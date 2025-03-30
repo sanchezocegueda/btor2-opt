@@ -69,10 +69,11 @@ def main():
             print(f"Invalid pass given as argument: {name}")
             exit(1)
         
-        if p.id == 'mark-insts':
+        if p.id in ['mark-insts', 'abstract-crypto', 'find-ports']:
             extra_args = True
 
     # Retrieve passes
+    # PROBLEM: this does the passes in the wrong order...
     pipeline: list[Pass] = [p for p in all_passes if p.id in sys.argv[1:]]
 
     # Run all passes in the pipeline
@@ -80,6 +81,7 @@ def main():
         if modular: 
             btor2 = p.runOnProgram(btor2)
         else:
+            print(p.id)
             btor2 = p.run(btor2)
 
     # Show the result to the user
@@ -87,7 +89,7 @@ def main():
         print(serialize_p(btor2))
     else:
         print("Success")
-        # pretty_print(btor2)
+        pretty_print(btor2)
 
 if __name__ == "__main__":
     main()
