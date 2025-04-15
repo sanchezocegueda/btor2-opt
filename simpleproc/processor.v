@@ -1,6 +1,6 @@
 
 
-module encrpytor (
+module encryptor (
     input wire [31:0] data_in,
     input wire [31:0] key,
     output wire [31:0] data_out
@@ -30,7 +30,7 @@ module processor (
     assign chosen_key = (pid == 0) ? key1 : key2;
     assign chosen_data_in = (op == 3'b010) ? register : mem;
 
-    always @(posedge clk ) begin
+    always @(posedge clk) begin
         if (op == 3'b000) begin
             // Load data into register
             register <= data_in;
@@ -49,7 +49,7 @@ module processor (
         end
     end
 
-    encrpytor enc (
+    encryptor enc (
         .data_in(chosen_data_in),
         .key(chosen_key),
         .data_out(enc_data_out)

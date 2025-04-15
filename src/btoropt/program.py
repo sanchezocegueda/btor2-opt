@@ -257,11 +257,6 @@ class Ite(Instruction):
     def __init__(self, lid: int, sort: Sort, cond: Instruction, t: Instruction, f: Instruction):
         super().__init__(lid, "ite", [sort, cond, t, f])
 
-# <lid> penc <sort> <msg> <key>
-class Penc(Instruction):
-    def __init__(self, lid: int, sort: Sort, msg: Instruction, key: Instruction):
-        super().__init__(lid, "penc", [sort, msg, key])
-
 class Array(Instruction):
     def __init__(self, lid, inst, operands: list[Sort]):
         super().__init__(lid, inst, operands)
@@ -392,6 +387,13 @@ class Sext(Instruction):
 
 
 ############ NON-STANDARD: Custom extensions for btor-opt ############
+
+# SymEnc instruction
+# <lid> symenc <sort> <msg> <key>
+class SymEnc(Instruction):
+    def __init__(self, lid: int, sort: Sort, msg: Instruction, key: Instruction):
+        super().__init__(lid, "symenc", [sort, msg, key])
+
 
 # Precondition instruction
 # This becomes a "x not cond; bad x" when verifying an instance

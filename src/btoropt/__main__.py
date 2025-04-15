@@ -83,6 +83,11 @@ def main():
         else:
             print(p.id)
             btor2 = p.run(btor2)
+            # s = set()
+            # for inst in btor2:
+            #     s.add(type(inst))
+            
+            # print(s)
 
     # Show the result to the user
     if(modular):

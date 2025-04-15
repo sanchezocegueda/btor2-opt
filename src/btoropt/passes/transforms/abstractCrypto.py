@@ -17,7 +17,7 @@
 ##########################################################################
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite, Uext, Penc, get_inst
+from ...program import Instruction, Sort, Next, Ite, Uext, SymEnc, get_inst
 from collections import deque
 import json
 
@@ -61,17 +61,17 @@ class AbstractCrypto(Pass):
                         lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
                         sort = inst.operands[0] # We need these to be the same sort (?)
 
-                penc = Penc(lid, sort, m, k) # Create abstract penc instruction
+                symenc = SymEnc(lid, sort, m, k) # Create abstract penc instruction
 
-                p.insert(lid, penc) # Add it right after the original
+                p.insert(lid, symenc) # Add it right after the original
 
                 # Replace occurrence of module output with abstract penc
                 for inst in p:
                     for i in range(len(inst.operands)):
                         other_inst = inst.operands[i]
-                        if isinstance(other_inst, Instruction) and other_inst.lid == penc.lid:
+                        if isinstance(other_inst, Instruction) and other_inst.lid == symenc.lid:
                             inst.operands.pop(i)
-                            inst.operands.insert(i, penc)
+                            inst.operands.insert(i, symenc)
             
             elif mtype == 'asymenc':
                 # TODO: asymmetric encryption block
@@ -85,8 +85,6 @@ class AbstractCrypto(Pass):
 
         # Reorder everything so that instructions are in order
         # (Ripped from CheckLidOrdering)
-
-
         res = []
 
         for i in range(len(p)):

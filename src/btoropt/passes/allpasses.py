@@ -22,8 +22,11 @@ from ..passes.genericpass import Pass
 from ..passes.transforms.renameInputs import RenameInputs
 from ..passes.transforms.initAllStates import InitAllStates
 from ..passes.transforms.abstractCrypto import AbstractCrypto
+from ..passes.transforms.doNothing import DoNothing
 from .analysis.markInsts import MarkInsts
 from .analysis.findPorts import FindPorts
+from .analysis.getPipeline import GetPipeline
+from .analysis.drawDependencies import DrawDependencies
 from ..passes.validation.checkLidOrdering import CheckLidOrdering
 
 # Retrieves a pass from the list given an id
@@ -31,4 +34,4 @@ def find_pass(p: list[Pass], id: str) -> Pass:
     return next((e for e in p if e.id == id), None)
 
 # List containing all passes
-all_passes = [AbstractCrypto(), RenameInputs(), InitAllStates(), MarkInsts(), FindPorts(), CheckLidOrdering()]
+all_passes = [AbstractCrypto(), RenameInputs(), InitAllStates(), MarkInsts(), FindPorts(), CheckLidOrdering(), DoNothing(), GetPipeline(), DrawDependencies()]

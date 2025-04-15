@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ##########################################################################
 
-# Example pass: Simply renames all inputs to inp_<pos>
+# Marks all the dependents and anti-dependents of the specified instruction (lid)
 
 from ..genericpass import Pass
 from ...program import Instruction, Sort, Next, Ite

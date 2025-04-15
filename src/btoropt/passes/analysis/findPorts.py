@@ -34,7 +34,7 @@ class FindPorts(Pass):
 
 
     # NOTE: This is horribly slow
-    def run(self, p: list[Instruction]) -> list[Instruction]:
+    def run(self, p: list[Instruction]) -> tuple[list[Instruction]]:
         
         modules = self.get_m()
 
@@ -63,4 +63,4 @@ class FindPorts(Pass):
                         outPorts.append(inst)
 
 
-        return p 
+        return inPorts, outPorts
