@@ -23,7 +23,7 @@ import json
 
 class AbstractCrypto(Pass):
     """
-    This pass will abstract a crypto block into a (custom) penc instruction
+    This pass will abstract a crypto block into a (custom) SymEnc instruction
     """
     def __init__(self):
         super().__init__("abstract-crypto")
