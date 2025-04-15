@@ -17,7 +17,7 @@
 ##########################################################################
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite, Uext, Penc
+from ...program import Instruction, Sort, Next, Ite, Uext, SymEnc
 from collections import deque
 import json
 
