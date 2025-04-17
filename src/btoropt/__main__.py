@@ -20,6 +20,7 @@ from .program import *
 from .passes.allpasses import *
 from .parser import *
 import sys
+import itertools
 
 options = ["modular"]
 
@@ -57,24 +58,36 @@ def main():
 
     base += 1
 
-    # Check that the given pass names are valid
-    extra_args = False
-    for name in sys.argv[base:]:
-        if extra_args:
-            p.add_path(name)
-            extra_args = False
-            continue
-        p = find_pass(all_passes, name)
-        if p is None:
-            print(f"Invalid pass given as argument: {name}")
-            exit(1)
-        
-        if p.id in ['mark-insts', 'abstract-crypto', 'find-ports']:
-            extra_args = True
-
     # Retrieve passes
-    # PROBLEM: this does the passes in the wrong order...
-    pipeline: list[Pass] = [p for p in all_passes if p.id in sys.argv[1:]]
+    pipeline : list[Pass] = []
+
+    # Check that the given pass names are valid
+    num_args = len(sys.argv)
+    curr_arg_idx = base
+
+    while curr_arg_idx < num_args:
+        p_name = sys.argv[curr_arg_idx]
+        p = find_pass(all_passes, p_name)
+        if p is None:
+            print(f"Invalid pass given as argument: {p_name}")
+            exit(1)
+        curr_arg_idx += 1
+
+        path_args = {}
+        # Check if the pass has any arguments
+        while curr_arg_idx < num_args:
+            curr_arg = sys.argv[curr_arg_idx]
+            if curr_arg.startswith("--"):
+                stripped_arg = curr_arg.strip("--").split("=")
+                name = stripped_arg[0]
+                value = stripped_arg[1] if len(stripped_arg) > 1 else None
+                path_args[name] = value
+                curr_arg_idx += 1
+            else:
+                break
+            
+        p.set_args(path_args)
+        pipeline.append(p)    
 
     # Run all passes in the pipeline
     for p in pipeline:

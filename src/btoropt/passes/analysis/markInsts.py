@@ -27,7 +27,10 @@ class MarkInsts(Pass):
         super().__init__("mark-insts")
 
     def get_m(self) -> list[int]:
-        with open(self.path, 'r') as f:
+        module_path = self.args.get('module_path', None)
+        if module_path is None:
+            raise ValueError(f"Module path not provided. Pass {self.id} module_path argument as --module_path=<name of file>.")
+        with open(module_path, 'r') as f:
             m = [int(i) for i in f.readlines()]
         return m
 

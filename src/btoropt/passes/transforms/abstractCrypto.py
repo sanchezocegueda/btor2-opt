@@ -28,9 +28,12 @@ class AbstractCrypto(Pass):
     def __init__(self):
         super().__init__("abstract-crypto")
 
-    def get_m(self) -> list[int]:
+    def get_m(self) -> list:
         # This one gets the modules (should be a json file)
-        with open(self.path, 'r') as f:
+        module_path = self.args.get('module_path', None)
+        if module_path is None:
+            raise ValueError(f"Module path not provided. Pass {self.id} module_path argument as --module_path=<name of file>.")
+        with open(module_path, 'r') as f:
             m = json.load(f) # assuming this is a JSON that has an array of module objects
         return m
 
