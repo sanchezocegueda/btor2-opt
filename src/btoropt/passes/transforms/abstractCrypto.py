@@ -21,6 +21,11 @@ from ...program import Instruction, Sort, Next, Ite, Uext, SymEnc, get_inst
 from collections import deque
 import json
 
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
+
 class AbstractCrypto(Pass):
     """
     This pass will abstract a crypto block into a (custom) SymEnc instruction
@@ -49,24 +54,33 @@ class AbstractCrypto(Pass):
             if mtype == 'symenc':
                 # symmetric encryption block
                 name = m['name']
-                plaintext = m['plaintext']
-                key = m['key']
-                ciphertext = m['ciphertext']
+                plaintext_signame = f"{name}.{m['plaintext']}"
+                key_signame = f"{name}.{m['key']}"
+                ciphertext_signame = f"{name}.{m['ciphertext']}"
 
-                inames = [name + '.' + x for x in [plaintext, key, ciphertext]]
-                # TODO: What Sort should we use?
+                pln_inst : Instruction = None
+                key_inst : Instruction = None
+                cip_lid : int = None
+
                 for inst in p:
-                    if isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + plaintext:
-                        m = inst.operands[1] # The original instruction (not the alias)
-                    elif isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + key:
-                        k = inst.operands[1] # The original instruction (not the alias)
-                    elif isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + ciphertext:
-                        lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
-                        sort = inst.operands[0] # We need these to be the same sort (?)
+                    if isinstance(inst, Uext) and inst.renaming and inst.name == plaintext_signame:
+                        pln_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == key_signame:
+                        key_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == ciphertext_signame:
+                        cip_lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
+                        # sort = inst.operands[0] # We need these to be the same sort (?)
 
-                symenc = SymEnc(lid, sort, m, k) # Create abstract penc instruction
+                if pln_inst is None or key_inst is None or cip_lid is None:
+                    logger.error(f"Could not find all the necessary inputs for {name}, found {pln_inst}, {key_inst}, {cip_lid}")
+                    sys.exit(1)
+                else:
+                    logger.debug(f"Found symenc at inputs: {pln_inst}, {key_inst}, output: {cip_lid}")
 
-                p.insert(lid, symenc) # Add it right after the original
+
+                symenc = SymEnc(cip_lid, pln_inst, key_inst) # Create abstract penc instruction
+
+                p.insert(cip_lid, symenc) # Add it right after the original
 
                 # Replace occurrence of module output with abstract penc
                 for inst in p:

@@ -20,7 +20,25 @@ from .program import *
 from .passes.allpasses import *
 from .parser import *
 import sys
-import itertools
+import logging
+
+# Set up logging
+h1 = logging.StreamHandler(sys.stdout)
+h1.setLevel(logging.ERROR)
+
+h2 = logging.FileHandler("btoropt.log", mode="w")
+h2.setLevel(logging.DEBUG)
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        h1, # Console output
+        h2 # File output
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 options = ["modular"]
 

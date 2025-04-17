@@ -389,11 +389,14 @@ class Sext(Instruction):
 ############ NON-STANDARD: Custom extensions for btor-opt ############
 
 # SymEnc instruction
-# <lid> symenc <sort> <msg> <key>
+# <lid> symenc <msg> <key>
 class SymEnc(Instruction):
-    def __init__(self, lid: int, sort: Sort, msg: Instruction, key: Instruction):
-        super().__init__(lid, "symenc", [sort, msg, key])
+    def __init__(self, lid: int, msg: Instruction, key: Instruction):
+        super().__init__(lid, "symenc", [msg, key], False)
 
+# class ACSort(Instruction):
+#     def __init__(self, lid: int, typ: str):
+#         super().__init__(lid, "acsort", [], False)
 
 # Precondition instruction
 # This becomes a "x not cond; bad x" when verifying an instance
