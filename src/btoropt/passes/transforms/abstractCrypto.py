@@ -17,9 +17,15 @@
 ##########################################################################
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite, Uext, SymEnc, get_inst
-from collections import deque
+from ...program import *
 import json
+
+from ..analysis.markInsts import MarkInsts
+
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AbstractCrypto(Pass):
     """
@@ -28,9 +34,12 @@ class AbstractCrypto(Pass):
     def __init__(self):
         super().__init__("abstract-crypto")
 
-    def get_m(self) -> list[int]:
+    def get_m(self) -> list:
         # This one gets the modules (should be a json file)
-        with open(self.path, 'r') as f:
+        module_path = self.args.get('module_path', None)
+        if module_path is None:
+            raise ValueError(f"Module path not provided. Pass {self.id} module_path argument as --module_path=<name of file>.")
+        with open(module_path, 'r') as f:
             m = json.load(f) # assuming this is a JSON that has an array of module objects
         return m
 
@@ -38,7 +47,7 @@ class AbstractCrypto(Pass):
         
         modules = self.get_m()
 
-        to_abstract = []
+        acsort = ACSort(1)
 
         for m in modules:
             mtype = m['type']
@@ -46,24 +55,35 @@ class AbstractCrypto(Pass):
             if mtype == 'symenc':
                 # symmetric encryption block
                 name = m['name']
-                plaintext = m['plaintext']
-                key = m['key']
-                ciphertext = m['ciphertext']
+                plaintext_signame = f"{name}.{m['plaintext']}"
+                key_signame = f"{name}.{m['key']}"
+                ciphertext_signame = f"{name}.{m['ciphertext']}"
 
-                inames = [name + '.' + x for x in [plaintext, key, ciphertext]]
-                # TODO: What Sort should we use?
+                pln_inst : Instruction = None
+                key_inst : Instruction = None
+                cip_lid : int = None
+
                 for inst in p:
-                    if isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + plaintext:
-                        m = inst.operands[1] # The original instruction (not the alias)
-                    elif isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + key:
-                        k = inst.operands[1] # The original instruction (not the alias)
-                    elif isinstance(inst, Uext) and inst.renaming and inst.name == name + '.' + ciphertext:
-                        lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
-                        sort = inst.operands[0] # We need these to be the same sort (?)
+                    if isinstance(inst, Uext) and inst.renaming and inst.name == plaintext_signame:
+                        pln_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == key_signame:
+                        key_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == ciphertext_signame:
+                        cip_lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
+                        # sort = inst.operands[0] # We need these to be the same sort (?)
 
-                symenc = SymEnc(lid, sort, m, k) # Create abstract penc instruction
+                if pln_inst is None or key_inst is None or cip_lid is None:
+                    logger.error(f"Could not find all the necessary inputs for {name}, found {pln_inst}, {key_inst}, {cip_lid}")
+                    sys.exit(1)
+                else:
+                    logger.debug(f"Found symenc at inputs: {pln_inst}, {key_inst}, output: {cip_lid}")
 
-                p.insert(lid, symenc) # Add it right after the original
+                # Create abstract penc instruction
+                symenc = SymEnc(cip_lid, acsort, pln_inst, key_inst) 
+
+                # Insert new instructions
+                p.insert(0, acsort)
+                p.insert(cip_lid, symenc)
 
                 # Replace occurrence of module output with abstract penc
                 for inst in p:
@@ -74,22 +94,41 @@ class AbstractCrypto(Pass):
                             inst.operands.insert(i, symenc)
             
             elif mtype == 'asymenc':
-                # TODO: asymmetric encryption block
-                pass
-
+                logger.error("Asymmetric encryption not yet supported")
+                
 
             elif mtype == 'asymdec':
-                # TODO: asymmetric decryption block
-                pass
+                logger.error("Asymmetric decryption not yet supported")
 
 
         # Reorder everything so that instructions are in order
         # (Ripped from CheckLidOrdering)
         res = []
-
         for i in range(len(p)):
             inst = p[i]
             inst.lid = i + 1
             res.append(inst)
 
+        mi = MarkInsts()
+        mi.source_insts = [symenc.lid, pln_inst.lid, key_inst.lid]
+        logger.info("Marking instructions")
+        marked_insts = mi.run(res)
+        self.validate_marked_insts(marked_insts, res, acsort)
+
         return res
+
+    def validate_marked_insts(self, marked_insts: list[int], p: list[Instruction], acsort):
+        for lid in marked_insts:
+            inst: Instruction = p[lid-1]
+            match inst:
+                # Whitelisted instructions
+                case Next() | Input() | Output() | Ite() | SymEnc() | State():
+                    inst.operands[0] = acsort
+                case Uext():
+                    if inst.operands[2] != 0:
+                        logger.error(f"Uext {inst.serialize()} with lid {lid} has unsupported non-zero extension {inst.operands[2]}.")
+                        sys.exit(1)
+                    inst.operands[0] = acsort
+                case _:
+                    logger.warning(f"Cannot propagate inst. {inst.serialize()}, overapproximating.")
+                    p[lid-1] = ACNondet(lid, acsort)

@@ -26,9 +26,10 @@ import multiprocessing
 class Pass:
     def __init__(self, id: str):
         self.id = id
+        self.args = {}
 
-    def add_path(self, path: str):
-        self.path = path
+    def set_args(self, args: dict[str, str]):
+        self.args = args
 
     def run(self, p: list[Instruction]) -> list[Instruction]:
         return p

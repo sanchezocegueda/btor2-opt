@@ -19,17 +19,28 @@
 # Marks all the dependents and anti-dependents of the specified instruction (lid)
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite
+from ...program import *
 from collections import deque
+
+import logging
+logger = logging.getLogger(__name__)
 
 class MarkInsts(Pass):
     def __init__(self):
         super().__init__("mark-insts")
+        self.source_insts = None
 
     def get_m(self) -> list[int]:
-        with open(self.path, 'r') as f:
-            m = [int(i) for i in f.readlines()]
-        return m
+        if self.source_insts is None:
+            module_path = self.args.get('module_path', None)
+            if module_path is None:
+                raise ValueError(f"Module path not provided. Pass {self.id} module_path argument as --module_path=<name of file>.")
+            with open(module_path, 'r') as f:
+                m = [int(i) for i in f.readlines()]
+            self.source_insts = m
+            return m
+        else:
+            return self.source_insts
 
     def run(self, p: list[Instruction]) -> list[Instruction]:
 
@@ -55,27 +66,23 @@ class MarkInsts(Pass):
                 adj[i].append(j)
                 adj[j].append(i)
 
+        # Initialize the queue with the source instructions
         q = deque()
+        q.extend(self.get_m())
 
-        m = self.get_m()
-        q.extend(m)
-
+        # Marked set of instruction
         marked = set()
 
-        ## Mark dependents
+        # Breadth-first search
         while q:
             lid = q.pop()
-
             if lid in marked:
                 continue
-            
             # Mark the message
             marked.add(lid)
-
             # Recursively mark all dependents
             for other_lid in adj[lid]:
                 q.append(other_lid)
 
-        print("DEBUG: marked set =", marked)
-
+        logger.debug(f"Pass {self.id}: Found marked set ", marked)
         return marked
