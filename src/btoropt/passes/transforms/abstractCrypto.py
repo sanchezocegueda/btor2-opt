@@ -17,9 +17,10 @@
 ##########################################################################
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite, Uext, SymEnc, get_inst
-from collections import deque
+from ...program import *
 import json
+
+from ..analysis.markInsts import MarkInsts
 
 import sys
 import logging
@@ -46,7 +47,7 @@ class AbstractCrypto(Pass):
         
         modules = self.get_m()
 
-        to_abstract = []
+        acsort = ACSort(1)
 
         for m in modules:
             mtype = m['type']
@@ -77,10 +78,12 @@ class AbstractCrypto(Pass):
                 else:
                     logger.debug(f"Found symenc at inputs: {pln_inst}, {key_inst}, output: {cip_lid}")
 
+                # Create abstract penc instruction
+                symenc = SymEnc(cip_lid, acsort, pln_inst, key_inst) 
 
-                symenc = SymEnc(cip_lid, pln_inst, key_inst) # Create abstract penc instruction
-
-                p.insert(cip_lid, symenc) # Add it right after the original
+                # Insert new instructions
+                p.insert(0, acsort)
+                p.insert(cip_lid, symenc)
 
                 # Replace occurrence of module output with abstract penc
                 for inst in p:
@@ -91,22 +94,41 @@ class AbstractCrypto(Pass):
                             inst.operands.insert(i, symenc)
             
             elif mtype == 'asymenc':
-                # TODO: asymmetric encryption block
-                pass
-
+                logger.error("Asymmetric encryption not yet supported")
+                
 
             elif mtype == 'asymdec':
-                # TODO: asymmetric decryption block
-                pass
+                logger.error("Asymmetric decryption not yet supported")
 
 
         # Reorder everything so that instructions are in order
         # (Ripped from CheckLidOrdering)
         res = []
-
         for i in range(len(p)):
             inst = p[i]
             inst.lid = i + 1
             res.append(inst)
 
+        mi = MarkInsts()
+        mi.source_insts = [symenc.lid, pln_inst.lid, key_inst.lid]
+        logger.info("Marking instructions")
+        marked_insts = mi.run(res)
+        self.validate_marked_insts(marked_insts, res, acsort)
+
         return res
+
+    def validate_marked_insts(self, marked_insts: list[int], p: list[Instruction], acsort):
+        for lid in marked_insts:
+            inst: Instruction = p[lid-1]
+            match inst:
+                # Whitelisted instructions
+                case Next() | Input() | Output() | Ite() | SymEnc() | State():
+                    inst.operands[0] = acsort
+                case Uext():
+                    if inst.operands[2] != 0:
+                        logger.error(f"Uext {inst.serialize()} with lid {lid} has unsupported non-zero extension {inst.operands[2]}.")
+                        sys.exit(1)
+                    inst.operands[0] = acsort
+                case _:
+                    logger.warning(f"Cannot propagate inst. {inst.serialize()}, overapproximating.")
+                    p[lid-1] = ACNondet(lid, acsort)
