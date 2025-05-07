@@ -124,8 +124,9 @@ class Input(Instruction):
 
 
 class Output(Instruction):
-    def __init__(self, lid: int, out: Instruction):
+    def __init__(self, lid: int, name: str, out: Instruction):
         super().__init__(lid, "output", [out])
+        self.name = name
 
 ## Unary Instructions ##
 
