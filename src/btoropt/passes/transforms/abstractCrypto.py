@@ -46,13 +46,39 @@ class AbstractCrypto(Pass):
     def run(self, p: list[Instruction]) -> list[Instruction]:
         
         modules = self.get_m()
+        # modules = self.args
 
         acsort = ACSort(1)
+        acsort_inserted: bool = False
+        has_crypto: bool = False
 
         for m in modules:
             mtype = m['type']
 
-            if mtype == 'symenc':
+            if mtype == 'top':
+                query_vars = m['query']
+                if len(query_vars) == 0:
+                    continue
+                
+                has_public: bool = True
+                public_insts = []
+
+                # Insert new instructions
+                if not acsort_inserted:
+                    p.insert(0, acsort)
+                    acsort_inserted = True
+
+                for inst in p:
+                    if isinstance(inst, Input) and inst.name in query_vars:
+                        inst.operands[0] = acsort # replace sort with AC sort
+                        public_insts.append(inst.lid + 1) # add 1 because we still have not updated lids
+                        logger.debug(f"Input {inst.name} at {inst.lid} declared as public")
+                        logger.debug(f"{inst.serialize()}")
+
+
+
+            elif mtype == 'symenc':
+                has_crypto = True
                 # symmetric encryption block
                 name = m['name']
                 plaintext_signame = f"{name}.{m['plaintext']}"
@@ -82,10 +108,13 @@ class AbstractCrypto(Pass):
                 symenc = SymEnc(cip_lid, acsort, pln_inst, key_inst) 
 
                 # Insert new instructions
-                p.insert(0, acsort)
+                if not acsort_inserted:
+                    p.insert(0, acsort)
+                    acsort_inserted = True
+                
                 p.insert(cip_lid, symenc)
 
-                # Replace occurrence of module output with abstract penc
+                # Replace occurrence of module output with abstract symenc
                 for inst in p:
                     for i in range(len(inst.operands)):
                         other_inst = inst.operands[i]
@@ -94,10 +123,12 @@ class AbstractCrypto(Pass):
                             inst.operands.insert(i, symenc)
             
             elif mtype == 'asymenc':
+                has_crypto = True
                 logger.error("Asymmetric encryption not yet supported")
                 
 
             elif mtype == 'asymdec':
+                has_crypto = True
                 logger.error("Asymmetric decryption not yet supported")
 
 
@@ -109,11 +140,22 @@ class AbstractCrypto(Pass):
             inst.lid = i + 1
             res.append(inst)
 
-        mi = MarkInsts()
-        mi.source_insts = [symenc.lid, pln_inst.lid, key_inst.lid]
-        logger.info("Marking instructions")
-        marked_insts = mi.run(res)
-        self.validate_marked_insts(marked_insts, res, acsort)
+        if has_public:
+            mi = MarkInsts()
+            mi.args = self.args
+            mi.source_insts = public_insts
+            marked_insts = mi.run(res)
+            self.validate_marked_insts(marked_insts, res, acsort)
+
+        if has_crypto:
+            mi = MarkInsts()
+            mi.args = self.args
+            mi.source_insts = [symenc.lid, pln_inst.lid, key_inst.lid]
+            # logger.info("Marking instructions")
+            marked_insts = mi.run(res)
+            self.validate_marked_insts(marked_insts, res, acsort)
+
+            # logger.debug(f"Marked instructions: {marked_insts}")
 
         return res
 
