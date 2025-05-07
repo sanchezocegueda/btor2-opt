@@ -1,9 +1,0 @@
-[
-    {
-        "type":"symenc",
-        "name":"enc",
-        "plaintext":"data_in",
-        "key":"key",
-        "ciphertext":"data_out"
-    }
-]
