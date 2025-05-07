@@ -84,5 +84,5 @@ class MarkInsts(Pass):
             for other_lid in adj[lid]:
                 q.append(other_lid)
 
-        logger.debug(f"Pass {self.id}: Found marked set ", marked)
+        # logger.debug(f"Pass {self.id}: Found marked set ", marked)
         return marked
