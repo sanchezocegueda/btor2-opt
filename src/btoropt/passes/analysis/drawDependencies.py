@@ -19,7 +19,7 @@
 # Automatically infers the pipeline stages by analyzing data-flow dependencies between state registers
 
 from ..genericpass import Pass
-from ...program import Instruction, Sort, Next, Ite, State
+from ...program import Instruction, Sort, Next, Ite, State, ACSort, pretty_print
 from collections import deque, defaultdict
 from functools import reduce
 import networkx as nx
@@ -32,6 +32,8 @@ class DrawDependencies(Pass):
 
     def run(self, p: list[Instruction]) -> list[Instruction]:
         
+        pretty_print(p)
+
         edges = []
 
         for inst in p:
@@ -52,16 +54,19 @@ class DrawDependencies(Pass):
                 nexts.append(inst.lid)
 
         states = [inst.lid for inst in p if isinstance(inst, State)]
+        ites = [inst.lid for inst in p if isinstance(inst, Ite)]
         sorts = [inst.lid for inst in p if isinstance(inst, Sort)]
+        # msgs = [inst.lid for inst in p if not (inst.lid in sorts) and isinstance(inst.operands[0], ACSort)]
         
-        next_insts.pop()
+
         last_next = next_insts.pop()
 
-        # des = nx.descendants(G, last_next.lid) | set([last_next.lid])
-        des = nx.descendants(G, 26) | set([26])
+        des = nx.descendants(G, last_next.lid) | set([last_next.lid])
+        # des = nx.descendants(G, 26) | set([26])
 
         H = nx.subgraph(G, des)
 
+        node_colors = ['red' if node in ites else ('green' if node in sorts else 'lightblue') for node in G.nodes] 
         node_colors = ['red' if node in states else ('green' if node in sorts else ('yellow' if node == last_next.lid else 'lightblue')) for node in G.nodes]
         # node_colors = ['red' if node in states else ('green' if node in sorts else ('yellow' if node == 26 else 'lightblue')) for node in H.nodes]
 
