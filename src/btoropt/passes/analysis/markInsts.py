@@ -46,7 +46,7 @@ class MarkInsts(Pass):
 
     def run(self, p: list[Instruction]) -> list[Instruction]:
 
-        pretty_print(p)
+        # pretty_print(p)
 
         ## Create an undirected graph 
         G =  nx.Graph()
@@ -72,7 +72,7 @@ class MarkInsts(Pass):
                 adj[i].append(j)
                 adj[j].append(i)
 
-        if True:
+        if False:
 
             states = [inst.lid for inst in p if isinstance(inst, State)]
             ites = [inst.lid for inst in p if isinstance(inst, Ite)]
@@ -124,7 +124,7 @@ class MarkInsts(Pass):
         
         # Initialize the queue with the source instructions
         q = deque()
-        # q.extend(self.get_m())
+        q.extend(self.get_m())
 
         # Marked set of instruction
         marked = set()

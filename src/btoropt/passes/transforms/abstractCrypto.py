@@ -29,7 +29,12 @@ logger = logging.getLogger(__name__)
 
 class AbstractCrypto(Pass):
     """
-    This pass will abstract a crypto block into a (custom) SymEnc instruction
+    This pass will abstract a crypto block into a (custom) SymEnc/SymDec instruction
+    Abbreviations:
+        symenc := symmetric encryption
+        symdec := symmetric decryption
+        pln := plaintext
+        cip := ciphertext
     """
     def __init__(self):
         super().__init__("abstract-crypto")
@@ -56,6 +61,7 @@ class AbstractCrypto(Pass):
             mtype = m['type']
 
             if mtype == 'top':
+                public_names = m['public'] 
                 query_vars = m['query']
                 if len(query_vars) == 0:
                     continue
@@ -74,6 +80,13 @@ class AbstractCrypto(Pass):
                         public_insts.append(inst.lid + 1) # add 1 because we still have not updated lids
                         logger.debug(f"Input {inst.name} at {inst.lid} declared as public")
                         logger.debug(f"{inst.serialize()}")
+                    
+                    elif isinstance(inst, Output) and inst.name in public_names:
+                        # inst.operands[0] = acsort
+                        public_insts.append(inst.lid + 1)
+                        logger.debug(f"Output {inst.name} at {inst.lid} declared as public")
+                        logger.debug(f"{inst.serialize()}")
+
 
 
 
@@ -85,11 +98,14 @@ class AbstractCrypto(Pass):
                 key_signame = f"{name}.{m['key']}"
                 ciphertext_signame = f"{name}.{m['ciphertext']}"
 
+                logger.debug(f"symenc: {name}, {plaintext_signame}, {key_signame}, {ciphertext_signame}")
+
                 pln_inst : Instruction = None
                 key_inst : Instruction = None
                 cip_lid : int = None
 
                 for inst in p:
+
                     if isinstance(inst, Uext) and inst.renaming and inst.name == plaintext_signame:
                         pln_inst = inst.operands[1] # The original instruction (not the alias)
                     elif isinstance(inst, Uext) and inst.renaming and inst.name == key_signame:
@@ -107,20 +123,68 @@ class AbstractCrypto(Pass):
                 # Create abstract penc instruction
                 symenc = SymEnc(cip_lid, acsort, pln_inst, key_inst) 
 
-                # Insert new instructions
+                # Insert acsort sort if not yet inserted into the program
                 if not acsort_inserted:
                     p.insert(0, acsort)
                     acsort_inserted = True
                 
+                # Insert encryption operation into the program
                 p.insert(cip_lid, symenc)
 
-                # Replace occurrence of module output with abstract symenc
+                # Replace occurrence of module output with abstract SymEnc
                 for inst in p:
                     for i in range(len(inst.operands)):
                         other_inst = inst.operands[i]
                         if isinstance(other_inst, Instruction) and other_inst.lid == symenc.lid:
                             inst.operands.pop(i)
                             inst.operands.insert(i, symenc)
+            
+            elif mtype == 'symdec':
+
+                has_crypto = True
+                name = m['name']
+
+                ciphertext_signame = f"{name}.{m['ciphertext']}"
+                key_signame = f"{name}.{m['key']}"
+                plaintext_signame = f"{name}.{m['plaintext']}"
+
+                cip_inst : Instruction = None
+                key_inst : Instruction = None
+                pln_lid : int = None
+
+                for inst in p:
+                    if isinstance(inst, Uext) and inst.renaming and inst.name == ciphertext_signame:
+                        cip_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == key_signame:
+                        key_inst = inst.operands[1] # The original instruction (not the alias)
+                    elif isinstance(inst, Uext) and inst.renaming and inst.name == plaintext_signame:
+                        pln_lid = inst.operands[1].lid # This is the actual inst we're supposed to replace (I think)
+                        # sort = inst.operands[0] # We need these to be the same sort (?)
+
+                if pln_inst is None or key_inst is None or cip_lid is None:
+                    logger.error(f"Could not find all the necessary inputs for {name}, found {pln_inst}, {key_inst}, {cip_lid}")
+                    sys.exit(1)
+                else:
+                    logger.debug(f"Found symenc at inputs: {cip_inst}, {key_inst}, output: {pln_lid}")
+
+                # Create abstract penc instruction
+                symdec = SymDec(pln_lid, acsort, cip_inst, key_inst)
+
+                # Insert acsort sort if not yet inserted into the program
+                if not acsort_inserted:
+                    p.insert(0, acsort)
+                    acsort_inserted = True
+
+                # Insert decryption instruction into the program
+                p.insert(pln_lid, symdec)
+
+                # Replace occurrence of module output with abstract SymDec
+                for inst in p:
+                    for i in range(len(inst.operands)):
+                        other_inst = inst.operands[i]
+                        if isinstance(other_inst, Instruction) and other_inst.lid == symdec.lid:
+                            inst.operands.pop(i)
+                            inst.operands.insert(i, symdec)
             
             elif mtype == 'asymenc':
                 has_crypto = True
@@ -144,33 +208,49 @@ class AbstractCrypto(Pass):
             mi = MarkInsts()
             mi.args = self.args
             mi.source_insts = public_insts
+            logger.debug("Marking instructions")
             marked_insts = mi.run(res)
             self.validate_marked_insts(marked_insts, res, acsort)
+            logger.debug(f"Marked instructions: {marked_insts}")
 
         if has_crypto:
             mi = MarkInsts()
             mi.args = self.args
             mi.source_insts = [symenc.lid, pln_inst.lid, key_inst.lid]
-            # logger.info("Marking instructions")
+            logger.debug("Marking instructions")
             marked_insts = mi.run(res)
             self.validate_marked_insts(marked_insts, res, acsort)
 
-            # logger.debug(f"Marked instructions: {marked_insts}")
+            logger.debug(f"Marked instructions: {marked_insts}")
+
+        self.update_insts(res)
 
         return res
 
+    def update_insts(self, p: list[Instruction]):
+        """Ensures that all Instructions are updated to the most recent values found in the program p."""
+        for inst in p:
+            for i, operand in enumerate(inst.operands):
+                if isinstance(operand, Instruction):
+                    inst.operands[i] = p[operand.lid-1]
+
+
     def validate_marked_insts(self, marked_insts: list[int], p: list[Instruction], acsort):
+
         for lid in marked_insts:
             inst: Instruction = p[lid-1]
             match inst:
                 # Whitelisted instructions
-                case Next() | Input() | Output() | Ite() | SymEnc() | State():
+                case Next() | Input() | Ite() | SymEnc() | State():
                     inst.operands[0] = acsort
                 case Uext():
                     if inst.operands[2] != 0:
                         logger.error(f"Uext {inst.serialize()} with lid {lid} has unsupported non-zero extension {inst.operands[2]}.")
                         sys.exit(1)
                     inst.operands[0] = acsort
+                case Output():
+                    pass # Do nothing
                 case _:
                     logger.warning(f"Cannot propagate inst. {inst.serialize()}, overapproximating.")
                     p[lid-1] = ACNondet(lid, acsort)
+                    # Replace all occurrences of these variables
