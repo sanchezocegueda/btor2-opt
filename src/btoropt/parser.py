@@ -198,7 +198,7 @@ def parse_inst(line: str, p: list[Instruction]) -> Instruction:
                 name = f"output_{inst[0]}"
 
             # Construct instruction
-            op = Output(lid, name, out)
+            op = Output(lid, out, name)
 
         case "bad":
             # Sanity check: verify that instruction is well formed
@@ -796,6 +796,9 @@ def parse_inst(line: str, p: list[Instruction]) -> Instruction:
 
             # Construct instruction
             op = Uext(lid, sort, operand, width, name)
+            
+            if len(inst) >= 6:
+                assert op.renaming
 
         case "sext":
             # Sanity check: verify that instruction is well formed
